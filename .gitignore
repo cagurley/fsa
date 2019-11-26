@@ -1,0 +1,9 @@
+*test*
+*temp*
+*__pycache__*
+*.csv
+*.ini
+*.log
+*.txt
+*.xls
+*.xlsx
