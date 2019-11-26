@@ -11,6 +11,7 @@ import os
 import pysftp
 import re
 import shutil
+import traceback as tb
 from time import sleep
 
 
@@ -33,21 +34,25 @@ class ConnDirectives:
         return None
 
     def cycle_times(self):
-        if self.access_time:
-            rows = []
-            with open('ref/TIMES.csv', newline='') as file:
-                reader = csv.reader(file)
-                for row in reader:
-                    rows.append(row)
-            for index, row in enumerate(rows):
-                if len(row) != 2 or row[0] == str(self.ref):
-                    rows.pop(index)
-            rows.append([str(self.ref), self.access_time.strftime('%c')])
-            self.previous_time = self.access_time
-            self.access_time = None
-            with open('ref/TIMES.csv', 'w', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerows(rows)
+        try:
+            if self.access_time:
+                rows = []
+                with open('ref/TIMES.csv', newline='') as file:
+                    reader = csv.reader(file)
+                    for row in reader:
+                        rows.append(row)
+                for index, row in enumerate(rows):
+                    if len(row) != 2 or row[0] == str(self.ref):
+                        rows.pop(index)
+                rows.append([str(self.ref), self.access_time.strftime('%c')])
+                self.previous_time = self.access_time
+                self.access_time = None
+                with open('ref/TIMES.csv', 'w', newline='') as file:
+                    writer = csv.writer(file)
+                    writer.writerows(rows)
+        except IOError:
+            log("IOError encountered attempting to open reference file `./ref/TIMES.csv`!")
+            print("Error encountered attempting to open reference files; check to ensure they are located at `./ref`.")
         return None
 
     def set_access_time(self):
@@ -249,45 +254,49 @@ try:
 
         log('Cycle started at {}'.format(str(start)))
         print('\nScanning initiated! Timestamp: {}'.format(str(start)))
-        with open('./ref/CONNS.csv', newline='') as connfile:
-            reader = csv.reader(connfile)
-            print('Examining connections...')
-            for index, row in enumerate(reader):
-                if len(row) != 5:
-                    print('Incorrect number of arguments for row {}! Discarded!'.format(index + 1))
-                else:
-                    row[0] = row[0].lower()
-                    row[1] = row[1].lower()
-                    if row[0] not in ('local', 'sftp'):
-                        print('Invalid protocol for row {}! Discarded!'.format(index + 1))
-                    elif not row[4].isdigit():
-                        print('Invalid port number for row {}! Discarded!'.format(index + 1))
+        try:
+            with open('./ref/CONNS.csv', newline='') as connfile:
+                reader = csv.reader(connfile)
+                print('Examining connections...')
+                for index, row in enumerate(reader):
+                    if len(row) != 5:
+                        print('Incorrect number of arguments for row {}! Discarded!'.format(index + 1))
                     else:
-                        row[4] = int(row[4])
-                        _join.append(index + 1)
-                        _conndir.append(ConnDirectives(index + 1, *row))
-        with open('./ref/OPS.csv', newline='') as opfile:
-            reader = csv.reader(opfile)
-            print('Examining operations...')
-            for index, row in enumerate(reader):
-                if len(row) < 5:
-                    print('Insufficient number of arguments for row {}! Discarded!'.format(index + 1))
-                elif not row[0].isdigit():
-                    print('Invalid connection reference for row {}! Discarded!'.format(index + 1))
-                elif row[1].lower() not in ('dir', 'file'):
-                    print('Invalid target type for row {}! Discarded!'.format(index + 1))
-                else:
-                    row[0] = int(row[0])
-                    row[1] = row[1].lower()
-                    row[3] = row[3].lower()
-                    if row[0] not in _join:
-                        print('Cannot find referenced connection for row {}! Discarded!'.format(index + 1))
-                    else:
-                        opdir = OpDirectives(*row)
-                        if not opdir.validate():
-                            print('Specified operation is invalid for row {}! Discarded!'.format(index + 1))
+                        row[0] = row[0].lower()
+                        row[1] = row[1].lower()
+                        if row[0] not in ('local', 'sftp'):
+                            print('Invalid protocol for row {}! Discarded!'.format(index + 1))
+                        elif not row[4].isdigit():
+                            print('Invalid port number for row {}! Discarded!'.format(index + 1))
                         else:
-                            _opdir.append(opdir)
+                            row[4] = int(row[4])
+                            _join.append(index + 1)
+                            _conndir.append(ConnDirectives(index + 1, *row))
+            with open('./ref/OPS.csv', newline='') as opfile:
+                reader = csv.reader(opfile)
+                print('Examining operations...')
+                for index, row in enumerate(reader):
+                    if len(row) < 5:
+                        print('Insufficient number of arguments for row {}! Discarded!'.format(index + 1))
+                    elif not row[0].isdigit():
+                        print('Invalid connection reference for row {}! Discarded!'.format(index + 1))
+                    elif row[1].lower() not in ('dir', 'file'):
+                        print('Invalid target type for row {}! Discarded!'.format(index + 1))
+                    else:
+                        row[0] = int(row[0])
+                        row[1] = row[1].lower()
+                        row[3] = row[3].lower()
+                        if row[0] not in _join:
+                            print('Cannot find referenced connection for row {}! Discarded!'.format(index + 1))
+                        else:
+                            opdir = OpDirectives(*row)
+                            if not opdir.validate():
+                                print('Specified operation is invalid for row {}! Discarded!'.format(index + 1))
+                            else:
+                                _opdir.append(opdir)
+        except IOError:
+            log("IOError encountered attempting to open reference files `./ref/CONNS.csv` and `./ref/OPS.csv`!")
+            print("Error encountered attempting to open reference files; check to ensure they are located at `./ref`.")
 
         if not _opdir:
             print('No valid operations found! Operation aborted!')
@@ -328,6 +337,9 @@ try:
                     # thrown by context manager. Needs future fix.
                     print('SSH exception for host {} raised! Check for incorrect connection directives or missing key in `~./.ssh/known_hosts`.'.format(conndir.host))
                     continue
+                except IOError as ioe:
+                    log("IOError encountered during connection: " + str(ioe))
+                    print("IOError encountered during connection; see log for details.")
 
         sleep_interval = (next_start - dt.datetime.now()).seconds
         if sleep_interval > 0:
