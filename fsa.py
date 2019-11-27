@@ -340,6 +340,9 @@ try:
                 except IOError as ioe:
                     log("IOError encountered during connection: " + str(ioe))
                     print("IOError encountered during connection; see log for details.")
+                except EOFError as eofe:
+                    log("EOFError encountered during connection: " + str(eofe))
+                    print("EOFError encountered during connection; see log for details.")
 
         sleep_interval = (next_start - dt.datetime.now()).seconds
         if sleep_interval > 0:
