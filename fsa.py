@@ -337,6 +337,9 @@ try:
                     # thrown by context manager. Needs future fix.
                     print('SSH exception for host {} raised! Check for incorrect connection directives or missing key in `~./.ssh/known_hosts`.'.format(conndir.host))
                     continue
+                except pysftp.ConnectionException as ce:
+                    log("ConnectionException encountered during connection: " + str(ce))
+                    print("ConnectionException encountered during connection; see log for details.")
                 except IOError as ioe:
                     log("IOError encountered during connection: " + str(ioe))
                     print("IOError encountered during connection; see log for details.")
