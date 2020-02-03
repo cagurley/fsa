@@ -11,7 +11,7 @@ import os
 import pysftp
 import re
 import shutil
-import traceback as tb
+#import traceback as tb
 from time import sleep
 
 
@@ -92,8 +92,10 @@ class OpDirectives:
                     or (self.operation in ('copy_to', 'move_to', 'copy_from', 'move_from')
                         and len(self.args) == 2)))
             or (self.target_type == 'file'
-                and self.operation == 'ren_copy'
-                and len(self.args) == 2)):
+                and (self.operation == 'rename_files'
+                        and len(self.args) == 1)
+                    or (self.operation == 'ren_copy'
+                        and len(self.args) == 2))):
             return True
         else:
             return False
@@ -120,6 +122,8 @@ def choose_func(conn, conndir, opdir):
                 + opdir.operation)
     if funcname == 'local_file_ren_copy':
         local_file_ren_copy(conndir, opdir)
+    if funcname == 'local_file_rename_files':
+        local_file_rename_files(conndir, opdir)
     if funcname == 'sftp_dir_rename_files':
         sftp_dir_rename_files(conn, opdir)
     elif funcname == 'sftp_dir_copy_to':
@@ -152,6 +156,18 @@ def local_file_ren_copy(conndir, opdir):
     if local_file:
         shutil.copy(local_file, opdir.args[0])
         log("Local file '{}' copied to '{}' locally".format(local_file.path, opdir.args[0]))
+    return None
+
+
+def local_file_rename_files(conndir, opdir):
+    with os.scandir(opdir.target_path) as local:
+        for file in local:
+            currdir, currname = os.path.split(file.path)
+            if opdir.pattern and not re.match(opdir.pattern, currname):
+                continue
+            newpath = os.path.join(opdir.args[0], currname)
+            os.rename(file.path, newpath)
+            log("Local file '{}' renamed to '{}'".format(file.path, newpath))
     return None
 
 
