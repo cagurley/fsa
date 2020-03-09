@@ -168,7 +168,8 @@ def local_file_rename_files(conndir, opdir):
             newpath = os.path.join(opdir.args[0], currname)
             if os.path.exists(newpath):
                 os.remove(newpath)
-            os.rename(file.path, newpath)
+            shutil.copy(file.path, newpath)
+            os.remove(file.path)
             log("Local file '{}' renamed to '{}'".format(file.path, newpath))
     return None
 
