@@ -1,6 +1,7 @@
 *test*
 *temp*
 *__pycache__*
+.idea/*
 *.csv
 *.ini
 *.log

@@ -105,6 +105,18 @@ def dummy(path):
     pass
 
 
+def format_args(args, dtime):
+    try:
+        for i, arg in enumerate(args):
+            fvals = list(set(re.findall(r'(\{(.+?)\})', arg)))
+            for j, pair in enumerate(fvals):
+                args[i] = arg.replace(pair[0], dtime.strftime(pair[1]))
+    except ValueError:
+        print('INVALID DATETIME FORMAT STRING PROVIDED; CHECK AND REPAIR STRINGS IN OPERATION ARGUMENTS.')
+    finally:
+        return args
+
+
 def log(line):
     try:
         with open('fsa.log', 'a') as log:
@@ -246,6 +258,8 @@ def sftp_dir_copy_from(pysftp_conn, conndir, opdir):
                 matched_paths.append(path)
     for path in matched_paths:
         currdir, currname = path.rsplit('/', 1)
+        if not os.path.exists(opdir.args[0]):
+            os.makedirs(opdir.args[0])
         newpath = os.sep.join([opdir.args[0], currname])
         conn.get(path, newpath, preserve_mtime=True)
         log("File '{}' on host copied to '{}' locally".format(path, newpath))
@@ -342,12 +356,14 @@ try:
                             conndir.set_access_time()
                             log("Connection with host '{}' established at {}".format(conndir.host, conndir.access_time))
                             for opdir in conndir.ops:
+                                opdir.args = format_args(opdir.args, start)
                                 choose_func(conn, conndir, opdir)
                             log("Connection with host '{}' terminated at {}".format(conndir.host, str(dt.datetime.now())))
                     elif conndir.protocol == 'local':
                             conndir.set_access_time()
                             log("Local host operations begun at at {}".format(conndir.access_time))
                             for opdir in conndir.ops:
+                                opdir.args = format_args(opdir.args, start)
                                 choose_func(conn, conndir, opdir)
                             log("Local host operations completed at {}".format(str(dt.datetime.now())))
                     conndir.cycle_times()
