@@ -2,9 +2,5 @@
 *temp*
 *__pycache__*
 .idea/*
-*.csv
-*.ini
+ref/*
 *.log
-*.txt
-*.xls
-*.xlsx
